@@ -86,6 +86,7 @@ class DummyAgent(CaptureAgent):
 
     '''
     You should change this in your own agent.
+    We should have offence and defense/ also remember to check teams
     '''
 
     return random.choice(actions)
