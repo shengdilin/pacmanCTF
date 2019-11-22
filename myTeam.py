@@ -22,7 +22,7 @@ import game
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'DummyAgent', second = 'DummyAgent'):
+               first = 'OffensiveAgent', second = 'DefensiveAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
@@ -95,7 +95,7 @@ class DummyAgent(CaptureAgent):
 #-----------------------------------OUR AGENTS-----------------------------------------------
 
 
-class CaptureAgent(CaptureAgent):
+class MyCaptureAgent(CaptureAgent):
   """
   A base class for reflex agents that chooses score-maximizing actions
   """
@@ -139,7 +139,7 @@ class CaptureAgent(CaptureAgent):
     """
     successor = gameState.generateSuccessor(self.index, action)
     pos = successor.getAgentState(self.index).getPosition()
-    if pos != nearestPoint(pos):
+    if pos != util.nearestPoint(pos):
       # Only half a grid position was covered
       return successor.generateSuccessor(self.index, action)
     else:
@@ -171,7 +171,7 @@ class CaptureAgent(CaptureAgent):
 
 
 
-class OffensiveAgent(CaptureAgent):
+class OffensiveAgent(MyCaptureAgent):
   """
   We want our offensive agent to do the following:
 
@@ -181,11 +181,17 @@ class OffensiveAgent(CaptureAgent):
 
 
   """
+  capsuleTimer = 0.0
+  dotsEaten = 0.0
+
+
   def getFeatures(self, gameState, action):
     features = util.Counter()
     successor = self.getSuccessor(gameState, action)
-    foodList = self.getFood(successor).asList()    
+    foodList = self.getFood(successor).asList()
+    prevFoodList = self.getFood(gameState).asList()
     features['successorScore'] = -len(foodList)#self.getScore(successor)
+    capsuleList = self.getCapsules(gameState)
 
     # Compute distance to the nearest food
 
@@ -194,8 +200,48 @@ class OffensiveAgent(CaptureAgent):
       minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
       features['distanceToFood'] = minDistance
 
-    #Compute distance to nearest enemy (if visible)
+    # Compute amount of food remaining to be eaten
+    features['foodLeft'] = len(foodList)
 
+    # Check if action involves eating food
+    if(len(foodList) < len(prevFoodList)):
+      self.dotsEaten += 1
+      features['foodEaten'] = 1
+    else:
+      features['foodEaten'] = 0
+
+    #Count down capsule timer if it is on
+    if(self.capsuleTimer > 0):
+      self.capsuleTimer -= 1
+
+
+    # Compute distance to capsules
+    if len(capsuleList) > 0: # This should always be True,  but better safe than sorry
+      myPos = successor.getAgentState(self.index).getPosition()
+      minDistance = min([self.getMazeDistance(myPos, capsule) for capsule in capsuleList])
+      features['distanceToCapsule'] = minDistance
+
+
+    #Compute distance to nearest enemy (if visible)
+    visibleEnemies = []
+    for enemy in self.getOpponents(gameState):
+      if gameState.getAgentPosition(enemy) is not None:
+        visibleEnemies.append(gameState.getAgentPosition(enemy))
+
+    enemyDists = []
+    for enemy in visibleEnemies:
+      enemyDists.append(self.getMazeDistance(gameState.getAgentPosition(self.index), enemy))
+
+    if(len(enemyDists) > 0):
+      features['enemyDistance'] = min(enemyDists)
+
+      if(min(enemyDists) < 3):
+        features['enemyNear'] = 1
+        print('oatmeal')
+      else:
+        features['enemyNear'] = 0
+    else:
+      features['enemyDistance'] = 100
 
     #Use inference to estimate distance otherwise
 
@@ -205,13 +251,14 @@ class OffensiveAgent(CaptureAgent):
   def getWeights(self, gameState, action):
 
     #Change sign/magnitude of certain weights if pacman has eaten the capsule or if it collects a certain number of dots
+    #prevCapsules
 
-    return {'successorScore': 100, 'distanceToFood': -1}
+    return {'successorScore': 100, 'distanceToFood': -1, 'distanceToFood': -2, 'enemyDistance': 30, 'enemyNear': -100, 'foodLeft': -1}
 
 
 
 
-class DefensiveAgent(CaptureAgent):
+class DefensiveAgent(MyCaptureAgent):
   """
   We want our defensive agent to do the following:
 
@@ -245,6 +292,11 @@ class DefensiveAgent(CaptureAgent):
     if action == Directions.STOP: features['stop'] = 1
     rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
     if action == rev: features['reverse'] = 1
+
+
+    # If the amount of food we are defending decreases, we know where an enemy is
+
+
 
     # Use inference to estimate distance to other agents on our side
 
