@@ -99,6 +99,8 @@ class MyCaptureAgent(CaptureAgent):
   """
   A base class for reflex agents that chooses score-maximizing actions
   """
+  capsuleTimer = 0.0
+
  
   def registerInitialState(self, gameState):
     self.start = gameState.getAgentPosition(self.index)
@@ -131,7 +133,16 @@ class MyCaptureAgent(CaptureAgent):
           bestDist = dist
       return bestAction
 
-    return random.choice(bestActions)
+    action = random.choice(bestActions)
+
+    #Count down capsule timer if it is on
+    if(self.capsuleTimer > 0):
+      self.capsuleTimer -= 1
+
+    if(self.getSuccessor(gameState, action).getAgentState(self.index).getPosition() in self.getFood(gameState).asList()):
+      self.dotsEaten += 1
+
+    return action
 
   def getSuccessor(self, gameState, action):
     """
@@ -181,7 +192,6 @@ class OffensiveAgent(MyCaptureAgent):
 
 
   """
-  capsuleTimer = 0.0
   dotsEaten = 0.0
 
 
@@ -190,34 +200,30 @@ class OffensiveAgent(MyCaptureAgent):
     successor = self.getSuccessor(gameState, action)
     foodList = self.getFood(successor).asList()
     prevFoodList = self.getFood(gameState).asList()
-    features['successorScore'] = -len(foodList)#self.getScore(successor)
+    features['successorScore'] = self.getScore(successor)
     capsuleList = self.getCapsules(gameState)
+    myPos = successor.getAgentState(self.index).getPosition()
 
     # Compute distance to the nearest food
-
     if len(foodList) > 0: # This should always be True,  but better safe than sorry
-      myPos = successor.getAgentState(self.index).getPosition()
-      minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+      minDistance = min([self.getMazeDistance(myPos, food) for food in prevFoodList])
       features['distanceToFood'] = minDistance
 
     # Compute amount of food remaining to be eaten
-    features['foodLeft'] = len(foodList)
+    #features['foodLeft'] = len(foodList)
 
     # Check if action involves eating food
-    if(len(foodList) < len(prevFoodList)):
-      self.dotsEaten += 1
-      features['foodEaten'] = 1
-    else:
-      features['foodEaten'] = 0
+    
 
-    #Count down capsule timer if it is on
-    if(self.capsuleTimer > 0):
-      self.capsuleTimer -= 1
+    #Reset dots eaten counter
+    if(self.getScore(successor) > self.getScore(gameState)):
+      self.dotsEaten = 0
 
+    #Compute distance to friendly side (spawn)
+    features['distanceHome'] = self.getMazeDistance(myPos, self.start)
 
     # Compute distance to capsules
     if len(capsuleList) > 0: # This should always be True,  but better safe than sorry
-      myPos = successor.getAgentState(self.index).getPosition()
       minDistance = min([self.getMazeDistance(myPos, capsule) for capsule in capsuleList])
       features['distanceToCapsule'] = minDistance
 
@@ -230,30 +236,34 @@ class OffensiveAgent(MyCaptureAgent):
 
     enemyDists = []
     for enemy in visibleEnemies:
-      enemyDists.append(self.getMazeDistance(gameState.getAgentPosition(self.index), enemy))
+      enemyDists.append(self.getMazeDistance(successor.getAgentPosition(self.index), enemy))
 
     if(len(enemyDists) > 0):
       features['enemyDistance'] = min(enemyDists)
 
       if(min(enemyDists) < 3):
         features['enemyNear'] = 1
-        print('oatmeal')
       else:
         features['enemyNear'] = 0
     else:
-      features['enemyDistance'] = 100
+      features['enemyDistance'] = 0
 
     #Use inference to estimate distance otherwise
-
 
     return features
 
   def getWeights(self, gameState, action):
+    
 
     #Change sign/magnitude of certain weights if pacman has eaten the capsule or if it collects a certain number of dots
-    #prevCapsules
-
-    return {'successorScore': 100, 'distanceToFood': -1, 'distanceToFood': -2, 'enemyDistance': 30, 'enemyNear': -100, 'foodLeft': -1}
+    if(self.dotsEaten > 5):
+      print('go home')
+      return {'distanceHome': -10, 'enemyDistance': -50}
+    if(self.capsuleTimer > 0):
+      print('ghost')
+      return {'successorScore': 100, 'distanceToFood': -1, 'distanceToCapsule': 0, 'enemyDistance': -50, 'enemyNear': 0}
+    else:
+      return {'successorScore': 100, 'distanceToFood': -1, 'enemyDistance': 50}
 
 
 
