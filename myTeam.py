@@ -169,6 +169,8 @@ class CaptureAgent(CaptureAgent):
     """
     return {'successorScore': 1.0}
 
+
+
 class OffensiveAgent(CaptureAgent):
   """
   We want our offensive agent to do the following:
@@ -191,10 +193,23 @@ class OffensiveAgent(CaptureAgent):
       myPos = successor.getAgentState(self.index).getPosition()
       minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
       features['distanceToFood'] = minDistance
+
+    #Compute distance to nearest enemy (if visible)
+
+
+    #Use inference to estimate distance otherwise
+
+
     return features
 
   def getWeights(self, gameState, action):
+
+    #Change sign/magnitude of certain weights if pacman has eaten the capsule or if it collects a certain number of dots
+
     return {'successorScore': 100, 'distanceToFood': -1}
+
+
+
 
 class DefensiveAgent(CaptureAgent):
   """
@@ -230,6 +245,8 @@ class DefensiveAgent(CaptureAgent):
     if action == Directions.STOP: features['stop'] = 1
     rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
     if action == rev: features['reverse'] = 1
+
+    # Use inference to estimate distance to other agents on our side
 
     return features
 
