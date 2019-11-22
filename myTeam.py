@@ -269,9 +269,10 @@ class DefensiveAgent(MyCaptureAgent):
 
 
   """
-
   def getFeatures(self, gameState, action):
+    #features of defender
     features = util.Counter()
+    #successor state
     successor = self.getSuccessor(gameState, action)
 
     myState = successor.getAgentState(self.index)
@@ -283,8 +284,11 @@ class DefensiveAgent(MyCaptureAgent):
 
     # Computes distance to invaders we can see
     enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-    invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
+    #determine invaders
+    invaders = [enemy for enemy in enemies if enemy.isPacman and enemy.getPosition() != None]
+    #keeps record of how many invaders
     features['numInvaders'] = len(invaders)
+    #if there is at least one invader 
     if len(invaders) > 0:
       dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
       features['invaderDistance'] = min(dists)
@@ -293,16 +297,11 @@ class DefensiveAgent(MyCaptureAgent):
     rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
     if action == rev: features['reverse'] = 1
 
-
-    # If the amount of food we are defending decreases, we know where an enemy is
-
-
-
-    # Use inference to estimate distance to other agents on our side
-
     return features
 
   def getWeights(self, gameState, action):
     return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
+
+  
 
 
