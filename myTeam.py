@@ -201,8 +201,10 @@ class OffensiveAgent(MyCaptureAgent):
     foodList = self.getFood(successor).asList()
     prevFoodList = self.getFood(gameState).asList()
     features['successorScore'] = self.getScore(successor)
-    capsuleList = self.getCapsules(gameState)
-    myPos = successor.getAgentState(self.index).getPosition()
+    prevCapsuleList = self.getCapsules(gameState)
+    capsuleList = self.getCapsules(successor)
+    myState = successor.getAgentState(self.index)
+    myPos = myState.getPosition()
 
     # Compute distance to the nearest food
     if len(foodList) > 0: # This should always be True,  but better safe than sorry
@@ -218,6 +220,8 @@ class OffensiveAgent(MyCaptureAgent):
     #Reset dots eaten counter
     if(self.getScore(successor) > self.getScore(gameState)):
       self.dotsEaten = 0
+    if(myPos == self.start):
+      self.dotsEaten = 0
 
     #Compute distance to friendly side (spawn)
     features['distanceHome'] = self.getMazeDistance(myPos, self.start)
@@ -227,26 +231,33 @@ class OffensiveAgent(MyCaptureAgent):
       minDistance = min([self.getMazeDistance(myPos, capsule) for capsule in capsuleList])
       features['distanceToCapsule'] = minDistance
 
+    #Give capsule status
+    if(len(prevCapsuleList) > len(capsuleList)):
+      capsuleTimer = 40
 
     #Compute distance to nearest enemy (if visible)
     visibleEnemies = []
-    for enemy in self.getOpponents(gameState):
-      if gameState.getAgentPosition(enemy) is not None:
-        visibleEnemies.append(gameState.getAgentPosition(enemy))
 
-    enemyDists = []
-    for enemy in visibleEnemies:
-      enemyDists.append(self.getMazeDistance(successor.getAgentPosition(self.index), enemy))
+    #Only count if pacman is on opposite side
+    if(myState.isPacman):
+      for enemy in self.getOpponents(successor):
+        if gameState.getAgentPosition(enemy) is not None:
+          visibleEnemies.append(gameState.getAgentPosition(enemy))
 
-    if(len(enemyDists) > 0):
-      features['enemyDistance'] = min(enemyDists)
+      enemyDists = []
+      for enemy in visibleEnemies:
+        enemyDists.append(self.getMazeDistance(successor.getAgentPosition(self.index), enemy))
 
-      if(min(enemyDists) < 3):
-        features['enemyNear'] = 1
+      if(len(enemyDists) > 0):
+        features['enemyDistance'] = min(enemyDists)
+
+        if(min(enemyDists) < 3):
+          features['enemyNear'] = 1
+        else:
+          features['enemyNear'] = 0
       else:
-        features['enemyNear'] = 0
-    else:
-      features['enemyDistance'] = 0
+        features['enemyDistance'] = 0
+    #If you are on same side, reward eating enemies
 
     #Use inference to estimate distance otherwise
 
@@ -257,13 +268,12 @@ class OffensiveAgent(MyCaptureAgent):
 
     #Change sign/magnitude of certain weights if pacman has eaten the capsule or if it collects a certain number of dots
     if(self.dotsEaten > 5):
-      print('go home')
       return {'distanceHome': -10, 'enemyDistance': -50}
     if(self.capsuleTimer > 0):
       print('ghost')
-      return {'successorScore': 100, 'distanceToFood': -1, 'distanceToCapsule': 0, 'enemyDistance': -50, 'enemyNear': 0}
+      return {'successorScore': 100, 'distanceToFood': -1, 'distanceToCapsule': 0, 'enemyDistance': -10, 'enemyNear': 0}
     else:
-      return {'successorScore': 100, 'distanceToFood': -1, 'enemyDistance': 50}
+      return {'successorScore': 100, 'distanceToFood': -1, 'distanceToCapsule': -1, 'enemyDistance': 10, 'enemyNear': -20}
 
 
 
