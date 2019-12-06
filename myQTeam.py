@@ -233,7 +233,7 @@ Our gameAgent holds many weights and draws from the q-agent:
 'successorScore' - we highly value eating our pellets
 'distanceToFood' - we value moving closer to a certain pellet
 'stop': We penalize no movement
-
+'eatEnemy' - we value eating enemy agents
 '''
 class gameAgent(ApproximateQAgent):
   
@@ -251,12 +251,12 @@ class gameAgent(ApproximateQAgent):
     self.weights['distanceToFood'] = -1
     self.weights['ghostDistance'] = 5
     self.weights['stop'] = -1000
-    self.weights['legalActions'] = 100
+    self.weights['legalActions'] = 90
     self.weights['powerPelletValue'] = 100
     self.distanceToTrackPowerPelletValue = 3
     self.weights['backToSafeZone'] = -1
     self.minPelletsToCashIn = 9
-    self.weights['chaseEnemyValue'] = -100
+    self.weights['chaseEnemyValue'] = -200
     self.chaseEnemyDistance = 5
     self.threatenedDistance = 5
     self.legalActionMap = {}

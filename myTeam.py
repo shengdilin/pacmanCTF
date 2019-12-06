@@ -22,7 +22,7 @@ import game
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-               first = 'OffensiveAgent', second = 'DefensiveAgent'):
+               first = 'OffensiveAgent', second = 'OffensiveAgent'):
   """
   This function should return a list of two agents that will form the
   team, initialized using firstIndex and secondIndex as their agent
@@ -193,6 +193,112 @@ class OffensiveAgent(MyCaptureAgent):
 
   """
   dotsEaten = 0.0
+  turnBack = False
+
+
+  def getFeatures(self, gameState, action):
+    features = util.Counter()
+
+    successor = self.getSuccessor(gameState, action)  #Next GameState
+
+    features['successorScore'] = self.getScore(successor)
+
+    myState = successor.getAgentState(self.index)     #Agent position (state) after action
+    myPos = myState.getPosition()
+
+    foodList = self.getFood(successor).asList()
+    prevFoodList = self.getFood(gameState).asList()
+
+    capsuleList = self.getCapsules(successor)
+    prevCapsuleList = self.getCapsules(gameState)
+
+    
+
+    # Compute distance to the nearest food
+    if len(foodList) > 0: # This should always be True,  but better safe than sorry
+      minDistance = min([self.getMazeDistance(myPos, food) for food in prevFoodList])
+      features['distanceToFood'] = minDistance
+
+    #Reset dots eaten counter on scoring or death
+    if(self.getScore(successor) > self.getScore(gameState)):
+      self.dotsEaten = 0
+    if(myPos == self.start): #Death
+      self.dotsEaten = 0
+
+    #Compute distance to friendly side (spawn)
+    features['distanceHome'] = self.getMazeDistance(myPos, self.start)
+
+    # Compute distance to capsules
+    if len(capsuleList) > 0:
+      minDistance = min([self.getMazeDistance(myPos, capsule) for capsule in capsuleList])
+      features['distanceToCapsule'] = minDistance
+
+    #Give capsule status
+    if(len(prevCapsuleList) > len(capsuleList)):
+      capsuleTimer = 40
+
+    #Compute distance to nearest enemy (if visible)
+    visibleEnemies = []
+
+    for enemy in self.getOpponents(successor):
+      if gameState.getAgentPosition(enemy) is not None:
+        visibleEnemies.append(gameState.getAgentPosition(enemy))
+
+      enemyDists = []
+      for enemy in visibleEnemies:
+        enemyDists.append(self.getMazeDistance(successor.getAgentPosition(self.index), enemy))
+
+      if(len(enemyDists) > 0):
+        features['enemyDistance'] = min(enemyDists)
+
+        if(min(enemyDists) < 3):
+          features['enemyNear'] = 1
+        else:
+          features['enemyNear'] = 0
+      else:
+        features['enemyDistance'] = 0
+
+
+    #Use inference to estimate distance otherwise
+
+    return features
+
+  def headBack(self, minDistance, features):
+    if(self.dotsEaten > 1 and minDistance > 7 or features['enemyDistance'] < 5):
+      return True
+    else:
+      return False
+
+  def getWeights(self, gameState, action):
+    successor = self.getSuccessor(gameState, action)
+    myState = successor.getAgentState(self.index)
+  #Only count if pacman is on opposite side
+    if(myState.isPacman):
+      #Change sign/magnitude of certain weights if pacman has eaten the capsule or if it collects a certain number of dots
+      if(myState.numCarrying > 5):
+        return {'distanceHome': -10, 'enemyDistance': -50}
+      if(myState.scaredTimer > 0):
+        print('ghost')
+        return {'successorScore': 100, 'distanceToFood': -1, 'distanceToCapsule': 0, 'enemyDistance': -10, 'enemyNear': 0}
+      else:
+        return {'distanceToFood': -1, 'distanceToCapsule': -1, 'enemyDistance': 10, 'enemyNear': -20}
+    
+    #If you are on same side, reward eating enemies
+    else:
+      return {'successorScore': 100, 'distanceToFood': -1, 'distanceToCapsule': 0, 'enemyDistance': -10}
+
+
+class AltOffensiveAgent(MyCaptureAgent):
+  """
+  We want our alternate offensive agent to do the following:
+
+    -Collect dots on the enemy side while avoiding enemy ghosts, unless they eat a capsule
+    -Use inference if they are over 5 away, otherwise avoid via direct observation
+    -Return to their side after collecting a certain number of dots
+
+
+  """
+  dotsEaten = 0.0
 
 
   def getFeatures(self, gameState, action):
@@ -263,9 +369,9 @@ class OffensiveAgent(MyCaptureAgent):
 
     return features
 
+
   def getWeights(self, gameState, action):
     
-
     #Change sign/magnitude of certain weights if pacman has eaten the capsule or if it collects a certain number of dots
     if(self.dotsEaten > 5):
       return {'distanceHome': -10, 'enemyDistance': -50}
@@ -278,8 +384,11 @@ class OffensiveAgent(MyCaptureAgent):
 
 
 
+
 class DefensiveAgent(MyCaptureAgent):
   """
+  This is basically bad.
+
   We want our defensive agent to do the following:
 
   -Follow the enemy agent closest to their side - use inference if they are over 5 away, otherwise follow directly
