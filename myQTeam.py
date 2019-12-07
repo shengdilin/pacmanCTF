@@ -233,7 +233,6 @@ Our gameAgent holds many weights and draws from the q-agent:
 'successorScore' - we highly value eating our pellets
 'distanceToFood' - we value moving closer to a certain pellet
 'stop': We penalize no movement
-'eatEnemy' - we value eating enemy agents
 '''
 class gameAgent(ApproximateQAgent):
   
@@ -251,7 +250,7 @@ class gameAgent(ApproximateQAgent):
     self.weights['distanceToFood'] = -1
     self.weights['ghostDistance'] = 5
     self.weights['stop'] = -1000
-    self.weights['legalActions'] = 90
+    self.weights['legalActions'] = 60
     self.weights['powerPelletValue'] = 100
     self.distanceToTrackPowerPelletValue = 3
     self.weights['backToSafeZone'] = -1
@@ -261,6 +260,7 @@ class gameAgent(ApproximateQAgent):
     self.threatenedDistance = 5
     self.legalActionMap = {}
     self.legalPositionsInitialized = False
+    self.weights['eatValue'] = 100
 
   def getWinningBy(self, gameState):
     #if red, score is score
@@ -350,15 +350,21 @@ class gameAgent(ApproximateQAgent):
     features['chaseEnemyValue'] = self.getChaseEnemyWeight(myPos, enemyPacmen)
     
     # If we cashed in any pellets, we shift over to defense mode for a time
-    if myState.numReturned != self.lastNumReturnedPellets:
+    #if myState.numReturned != self.lastNumReturnedPellets:
       #do some defense for a time
-      self.defenseTimer = 100
-      self.lastNumReturnedPellets = myState.numReturned
+      #self.defenseTimer = 100
+      #self.lastNumReturnedPellets = myState.numReturned
     # If on defense, heavily value chasing after enemies
-    if self.defenseTimer > 0:
-      self.defenseTimer -= 1
+    #if self.defenseTimer > 0:
+      #self.defenseTimer -= 1
       #increase chase enemy value
-      features['chaseEnemyValue'] *= 100
+      #features['chaseEnemyValue'] *= 100
+    #print(features['chaseEnemyValue'])
+
+    # Check if we eat enemy
+    if(self.getEatValue(myPos, enemyPacmen)):
+      print('eat')
+      features['eatValue'] = 1
 
     # If our opponents ate almost all our food, chase the enemy 
     if len(self.getFoodYouAreDefending(successor).asList()) <= 2:
@@ -425,6 +431,19 @@ class gameAgent(ApproximateQAgent):
         smallestDist = min(dists)
         return smallestDist
     return 0
+
+  # determines if you eat a PacMan
+  def getEatValue(self, myPos, enemyPacmen):
+    if len(enemyPacmen) > 0:
+      # Computes distance to enemy pacmen that we can see
+      for enemy in enemyPacmen:
+        #print('my pos:')
+        #print(myPos)
+        #print('enemy pos:')
+        #print(enemy.getPosition())
+        if(self.getMazeDistance(myPos, enemy.getPosition()) == 0 ):
+          return True
+    return False
 
   # find distance back if threatened/cornered
   def getBackToStartDistance(self, myPos, smallestGhostPosition):

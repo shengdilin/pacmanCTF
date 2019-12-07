@@ -278,7 +278,7 @@ class OffensiveAgent(MyCaptureAgent):
       if(myState.numCarrying > 5):
         return {'distanceHome': -10, 'enemyDistance': -50}
       if(myState.scaredTimer > 0):
-        print('ghost')
+        #print('ghost')
         return {'successorScore': 100, 'distanceToFood': -1, 'distanceToCapsule': 0, 'enemyDistance': -10, 'enemyNear': 0}
       else:
         return {'distanceToFood': -1, 'distanceToCapsule': -1, 'enemyDistance': 10, 'enemyNear': -20}
